@@ -1,0 +1,14 @@
+{
+    "sampling": {
+        "frequency": 5.0
+    },
+    "image": {
+        "resolution": {
+            "width": 720,
+            "height": 540
+        },
+        "color_space": {
+            "value": "GRAY"
+        }
+    }
+}
