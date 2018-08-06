@@ -1,4 +1,6 @@
+import sys
 from is_wire.core import Channel, Subscription, Message, Logger
+from is_wire.core.wire.status import StatusCode
 from is_msgs.camera_pb2 import CameraConfig
 from google.protobuf.json_format import Parse
 
@@ -8,9 +10,9 @@ from is_msgs.common_pb2 import SamplingSettings
 from is_msgs.image_pb2 import ImageSettings, Resolution, ColorSpace, ColorSpaces
 
 uri = 'amqp://10.10.2.15:30000'
-c = Channel(uri)
-sb = Subscription(c)
-log = Logger()
+channel = Channel(uri)
+subscription = Subscription(channel)
+log = Logger(name='SetConfig')
 camera_id = 0
 
 """ 
@@ -35,19 +37,16 @@ set_config = CameraConfig(
     )
 )
 
-def on_set_config(msg, context):
-    print(msg.metadata())
-
-def set_config_timeouted(msg, context):
-    log.warn('SetConfig request timeout exceeded')
-
 msg = Message()
+msg.reply_to = subscription
+msg.topic = 'CameraGateway.{}.SetConfig'.format(camera_id)
 msg.pack(set_config)
-msg.set_reply_to(sb)
-msg.set_on_reply(on_set_config)
-msg.set_timeout_ms(5000) # not needed
-msg.set_on_timeout(set_config_timeouted)  # not needed
-msg.set_topic('CameraGateway.{}.SetConfig'.format(camera_id))
-c.publish(msg)
+channel.publish(msg)
 
-c.listen()
+while True:
+    msg = channel.consume()
+    if msg.status.code == StatusCode.OK:
+        log.info('Configuration applied on camera \'{}\'.', camera_id)
+    else:
+        log.warn('Can\'t apply configuration:\n{}', msg.status)
+    sys.exit(0)
